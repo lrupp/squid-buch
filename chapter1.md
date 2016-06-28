@@ -191,3 +191,72 @@ cache_dir /var/squid/cache 6000 14 256
 ```
 
 Auch bei der Zugriffsart auf das Cache-Verzeichnis haben Sie wieder die Qual der Wahl:
+
+| Wert | Bemerkung |
+| -- | -- |
+| UFS (Standard) | Die Standard-Einstellung von Squid (wird auch genommen, wenn nichts weiter angegeben wird). Sollte bei der normalen Installation auch so gelassen werden. Erst ab 1-2 GB lohnt sich eine Umstellung wirklich. |
+| Async UFS | Asyncrones UFS - um zu verhindern, dass Squid allzu lange Pausen beim Zugriff auf die Festplatte macht. Hier werden keine Rückmeldungen vom System verlangt, wenn Dateien gespeichert werden. Das ist schnell, führt aber zu Fehlverhalten von Squid, wenn einmal das System nicht nachkommt und Daten nicht schnell genug speichern kann. Sie sollten hier also durchaus mit Datenverlust oder Programmabstürzen (von Squid) rechnen. Wenn es allerdings funktioniert... ;-) |
+| diskd | Die "neueste" Errungenschaft. DISKD ist kompatibel zu UFS und kann mit UFS eingerichtete Cache-Verzeichnisse direkt übernehmen. Hier soll - ähnlich dem Async. UFS - ein "Blockieren" von Squid bei Plattenzugriffen verhindert werden. Dafür wird ein separates Programm "diskd" gestartet, welches die Plattenzugriffe von Squid verwaltet. Besonders bei der Verwendung von mehreren Cache-Verzeichnissen auf verschiedenen Platten kann es zu nachweisbaren Geschwindigkeitsgewinnen kommen. Beachten Sie aber, dass "diskd" auch wieder Platz im RAM und einige Ressourcen des Prozessors benötigt. |
+
+Ein Beispiel gefällig?
+```
+cache_dir aufs /var/squid/cache 6000 14 256
+```
+ Wenn Sie den Server neu installieren oder eine weitere, kleine Platte "übrig" haben, dann sollten Sie diese speziell für Squid einbinden. Um die Zugriffe auf die Cache-Dateien noch weiter zu optimieren, kann dann die Partition oder Platte mit der Option "noatime" in der Datei /etc/fstab eingebunden werden. Damit wird bei einem Zugriff auf die Cache-Dateien nicht gleichzeitig jedesmal die Zugriffszeit geändert.
+
+...und wo wir gerade bei der Datei /etc/fstab und der separaten Partition von Squid's Cache sind: mit "noexec" und "nosuid" schliessen Sie vorsorglich Sicherheitslücken. Ein Beispieleintrag in der Datei /etc/fstab könnte also so aussehen:
+```
+# Device 	Mountpoint 	FStype 	Options 	Dump 	Pass#
+... 	/... 	... 	defaults 	1 	2
+/dev/hdd2 	/var/squid 	reiserfs 	rw,noatime,noexec,nosuid 	0 	3
+# /dev/hdc2 	/var/squid/logs 	reiserfs 	rw,noatime,noexec,nosuid 	0 	3
+```
+ (Achtung: bei diesem Beispiel werden auch die Logbücher von Squid unter /var/squid/logs auf dem entsprechend eingebunden Filesystem abgelegt. Damit wird diese eine Festplatte natürlich wieder mehr belastet, weil Sie einerseits ja die heruntergeladenen Dateien wegspeichern muss, andererseits aber auch die entsprechenden Logbücher.
+
+In der letzten Spalte ist deshalb noch eine weitere Platte im System (derzeit mit einem '#' auskommentiert), die nur für die Logbücher zuständig ist.
+
+Wenn Sie die "Performance" Ihres Systems auf die Spitze treiben wollen, sollten Sie sowieso über ein RAID-System nachdenken. Es ist auch immer eine gute Idee, wenn alle Logbücher des Systems auf einem anderen System (der Syslog-Daemon lässt übrigens auch das Schreiben über ein Netzwerk zu) oder einer anderen Platte gespeichert werden. Jetzt noch alle ausführbaren Programme auf einer Platte und Partition, welche Read-Only gemountet wird, alle spool- und cache-Verzeichnisse auf einer weiteren Platte, ...
+
+...und irgendwann sollte man über ein Leben ohne Computer und Backups nachdenken...
+
+Übrigens: Wenn man einmal eine bestimmte Datei sucht, die mal im Web vorhanden aber nun gelöscht ist, kann man unter Umständen noch sein Glück im Cache von Squid versuchen. Dazu benötigt man die Datei store.log. Dort wird vom Squid festgehalten, welche Dateien sich gerade im Cache befinden und welchen Status diese haben. Schauen wir mal kurz auf eine Zeile in dieser Datei:
+```
+1109331307.457 Release -1 FFFFFFFF D6A9EAFAD972F9389675C5B8AB2AD5BF 302 1109331307 -1 -1 text/html -1/204 GET http://www.google.com/
+```
+Die Einträge sind wie folgt zu verstehen:
+* Zeitformat (in UTC mit Millisekunden)
+* Die Aktion (hier: RELEASE, d.h. die Datei wurde freigegeben oder nicht gespeichert)
+* Das Verzeichnis (-1 steht hier für: nicht gespeichert)
+* FFFFFFFF (die Dateinummer - wurde die Datei wie hier nicht gespeichert, wird FFFFFFFF gesetzt - ansonsten findet man hier den Dateinamen)
+* Der Statuscode der HTTP Antwort - hier 302, da google auf die lokale Domain umleitet.
+* Das Datum aus der HTTP Antwort
+* "Last-Modified: " aus der HTTP Antwort
+* "Expires: " aus der HTTP Antwort
+* Dateityp - hier eine reine Textdatei
+* Mit einem / getrennt: "Content-Length: " aus der HTTP Antwort und die tatsächlich übermittelte Grösse
+* Die Methode, die diese Datei angefordert hat (meistens GET)
+* Die URL zu dieser Datei
+
+Anhand dieser Angaben sollten Sie die benötigte Datei nun schnell im Cache-Speicher finden können - sofern Sie dort gespeichert wurde...
+
+### emulate_httpd_log
+
+Squid speichert seine Logfiles normalerweise in einem eigenen Format, welches auch von entsprechenden Analyse-Tools gelesen werden kann. Wenn Sie - um etwa bei der Verwendung von "Logviewer" - Squid mit diesem Schalter anweisen ein "lesbareres" Logfile-Format zu verwenden, müssen Sie auch die entsprechenden Analyse-Tools (wie z.B. calamaris und webalizer) entsprechend umstellen.
+```
+emulate_httpd_log on
+```
+Damit speichert Squid besonders die Datei access.log, welche die Anforderungen der Clients enthält, in einem benutzerfreundlichen Format. So wird u.a. die Zeit in einem lesbaren Format gespeichert und auch der Rest der Einträge lassen sich mit nur wenig Fantasie richtig deuten.
+
+Mit der neuesten 3.x Version ist diese Option übrigens obsolet: Squid speichert jetzt immer im "http_log" Format.
+
+### log_fqdn
+
+Hier können Sie Squid anweisen, die Hostnamen der anfragenden Clients aufzulösen und diese Namen ins Logbuch zu schreiben. Aber Achtung! Zur Auflösung dieser Namen führt Squid einen DNS-Lookup durch, er fragt also zunächst einmal den eigenen Rechner (der diese Daten hoffentlich in der Datei /etc/hosts hat oder über einen eigenen Nameserver verfügt) und wendet sich bei einem Misserfolg an den nächsten DNS-Server. Wenn es sich dabei um einen öffentlichen DNS-Server (etwa den der Telekom) handelt, dann wird Squid die anfragenden IP-Nummern kaum zu Namen auflösen können.
+
+Mit dieser Option kann man also einerseits ein "schöneres" Logbuch produzieren, andererseits aber Squid auch enorm ausbremsen, weil er für jede Anfrage eines Clients dessen IP-Adresse in einen zugehörigen Namen auflösen soll. Die Standardeinstellung von "no" sollten Sie also nur bei der Verwendung eines eigenen Nameservers oder einer gut gefüllten hosts-Datei auf dem Server ändern.
+```
+log_fqdn on
+```
+
+## OPTIONS FOR EXTERNAL SUPPORT PROGRAMS
+Hier werden externe Hilfsprogramme aufgeführt, die von Squid während des laufenden Betriebs genutzt werden. Etwa Filter- oder Authentifizierungsprogramme.
