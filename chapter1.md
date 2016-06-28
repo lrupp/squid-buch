@@ -260,3 +260,12 @@ log_fqdn on
 
 ## OPTIONS FOR EXTERNAL SUPPORT PROGRAMS
 Hier werden externe Hilfsprogramme aufgeführt, die von Squid während des laufenden Betriebs genutzt werden. Etwa Filter- oder Authentifizierungsprogramme.
+
+### ftp_user
+ Gleich der erste Eintrag scheint nicht so richtig zu passen, allerdings meldet sich Squid mit dem hier eingetragenen Namen bei einer Datenübertragung mit FTP am entsprechenden Server an. Wenn sie also einerseits den Serveradmins etwas genauere Daten für ihre Statistik liefern wollen und auch nicht gleich wieder hinausgeschmissen werden möchten, wenn ein FTP-Server nur dem Nutzer "anonymous" mit einer echten Email-Adresse Zugriff gewährt, dann sollten Sie hier einen 'vernünftigen' Eintrag in der Form: nutzer@domain.de machen. Aber Achtung: manchmal werden die so übermittelten Email-Adressen auch für die Versendung von SPAM genutzt.
+
+Unter Webmin können Sie hier einen Eintrag hinter "Anon. FTP-Anmeldung" machen.
+```
+ftp_user anonymous@schule.de
+```
+
