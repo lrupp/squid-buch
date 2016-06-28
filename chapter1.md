@@ -338,3 +338,46 @@ D.h. im LDAP gibt es für jeden Nutzer einen Eintrag "internetDisabled". Sollte 
 | auth_param basic realm Internetzugang | Das Wort hinter "realm" wird im Dialogfenster bei der Anmeldung angezeigt. Bei mehreren Wörtern diese bitte in Anführungszeichen setzen. |
 | auth_param basic credentialsttl 2 hour | Die Authentifizierung wird die eingestellte Zeit lang aufrecht erhalten. Danach muss sich ein Nutzer erneut anmelden. Sollte der Nutzer zwischenzeitlich den Browser schließen, muss er sich allerdings sowieso erneut anmelden. Eine kürzere Zeitspanne dürfte also kaum jemanden auffallen. |
 
+## OPTIONS FOR TUNING THE CACHE
+
+Nachdem wir nun schon im Vorfeld so viel an "Tuning-Möglichkeiten" kennen gelernt haben, bietet uns die Konfigurationsdatei nun sogar noch einen eigenen Abschnitt dafür an.
+
+### request_header_max_size
+
+Hiermit wird die maximale Größe eines HTTP-Headers einer Anfrage festgelegt. Diese Header stehen am Anfang einer HTML-Seite und werden nicht vom Browser angezeigt. Normalerweise haben Header eine Größe von einigen hundert Byte. Diese Option dient dazu, fehlerhafte Anfragen, z.B. durch fehlerhafte Client-Software oder einen DoS-Angriff abzufangen. Die Standardeinstellung von 10 kB ist ein wenig übertrieben: 3 KB reichen da normalerweise aus. Achten Sie aber darauf, dass dies bei den immer mehr in Mode kommenden Groupware-Lösungen durchaus zu Problemen führen kann, wenn Nutzer Dateien von Ihrem Arbeitsplatz auf den Server hochladen wollen.
+```
+request_header_max_size 3 KB
+```
+
+### refresh_pattern
+
+Mit den Refresh-Pattern kann das Verhalten von Squid bei Anfragen eines Clients massiv beeinflusst werden. So können regelwidrige Refresh Pattern auch zur Auslieferung längst veralteter Webseiten oder FTP-Dateien führen. Allerdings ergibt sich hier auch eine optimale Möglichkeit zum Cache-Tuning.
+
+| Anweisung | Option | regulärer Ausdruck | Mindestzeit | Prozentsatz | Maximalzeit | weitere Optionen |
+| -- | -- | -- | -- | -- | -- | -- |
+| Die "refresh_pattern" Zeilen werden der Reihe nach durchlaufen. Es gilt die erste Zeile, deren regulärer Ausdruck zutrifft. | Normalerweise wird zwischen Groß- und Kleinschreibung unterschieden. Mit der Option -i wird das nicht berücksichtigt. | Der reguläre Ausdruck bestimmt, für welche URLs die Anweisung gilt. | Die bei min angegebene Mindestzeit gibt (in Minuten) die Zeit an, die Objekte ohne ausdrückliches Verfallsdatum mindestens als aktuell (fresh) betrachtet werden. 43200 bedeutet also 30 Tage. | percent ist der Prozentsatz des Objektalters (Zeit seit der letzten Änderung) die Objekte ohne ausdrückliches Verfallsdatum mindestens als aktuell (fresh) betrachtet werden. | max ist der maximale Zeitraum, den Objekte ohne ausdrückliches Verfallsdatum als aktuell (fresh) betrachtet werden. | options beinhaltet eine oder mehrere Optionen, durch Lerraum getrennt. Auf die einzelnen Optionen geht die untere Tabelle ein. |
+| refresh_pattern |  | ^ftp: | 43200 | 20% | 43200 | reload-into-ims |
+| refresh_pattern |  | ^gopher: | 43200 | 0% | 43200 | reload-into-ims |
+| refresh_pattern | -i | \\.jpg | 43200 | 100% | 43200 | reload-into-ims |
+| refresh_pattern | -i | \\.gif | 43200 | 100% | 43200 | reload-into-ims |
+| refresh_pattern | -i | \\.tif | 43200 | 100% | 43200 | reload-into-ims |
+| refresh_pattern | -i | \\.bmp | 43200 | 100% | 43200 | reload-into-ims |
+| refresh_pattern | -i | \\.png | 43200 | 100% | 43200 | reload-into-ims |
+| refresh_pattern | -i | windowsupdate.com/.*\\.(cab|exe) | 43200 | 100% | 43200 | reload-into-ims |
+| refresh_pattern | -i | download.microsoft.com/.*\\.(cab|exe) | 43200 | 100% | 43200 | reload-into-ims |
+| refresh_pattern |  | . | 20160 | 50% | 43200 |  |
+
+...und hier noch einmal die möglichen Optionen für die letzte Spalte:
+
+| Option | Bedeutung |
+| -- | -- |
+| override-expire | erzwingt die unter "min" angegeben "Mindesthaltbarkeit", auch wenn vom Webserver ein "Expires:" im Header gesendet wurde. |
+| override-lastmode | erzwingt die unter "min" angegeben "Mindesthaltbarkeit", auch wenn das Objekt häufig geändert wird. |
+| reload-into-ims | Ändert eine "no-cache" oder "reload" Anfrage in ein "If-Modified-Since" - das sollte die sinnvollste Voreinstellung sein, da Squid so zwar eine Anfrage ins Internet aussendet - oft aber die Seite aus seinem eigenen Cache holen kann. |
+| ignore-reload | ignoriert ein "no-cache" oder "reload" in einer Anfrage. |
+
+Bitte beachten Sie, dass Squid bei einigen Einstellungen gegen die w3d-Konventionen verstößt. Mit den oben gemachten Einstellungen werden aber vorwiegend Grafiken besser zwischengespeichert, die sich - wie die Erfahrung zeigt - kaum verändern.
+
+Die beiden vorletzten refresh-pattern sorgen (als Beispiel für komplexere Ausdrücke) dafür, dass Windows-Updates im Cache zwischengespeichert werden. Damit gelingt dann das Updaten der Windows-Rechner ein wenig schneller. Natürlich könnte man auch die vorherigen Zeilen für die Bilder zusammenfassen - hier habe ich einmal aus Gründen der Übersichtlichkeit darauf verzichtet.
+
+Der letzte Eintrag sorgt mit dem "." (Punkt) dafür, dass alle angeforderten Seiten, Grafiken, etc. für mindestens 14 Tage zwischengespeichert werden, solange sie sich nicht ausdrücklich geändert haben.
