@@ -323,6 +323,7 @@ auth_param basic realm Internetzugang
 auth_param basic credentialsttl 2 hour
 ```
 und hier die Erklärung zu den einzelnen Zeilen:
+
 | Wert | Erklärung |
 | -- | -- |
 | auth_param basic program /usr/sbin/ncsa_auth /etc/shadow | Zur Authentifizierung greift Squid hier auf das Programm ncsa_auth zurück. Das ist das Standardprogramm von Squid. Andere Programme sind z.B. smb_auth, yp_auth oder squid_ldap_auth. (ein Hinweis an dieser Stelle: das Programm ldap_auth hat dieselbe Funktion, wird aber nicht mehr weiter Entwickelt und ist von squid_ldap_auth abgelöst worden). All diese Programme können Nutzer authentifizieren:
