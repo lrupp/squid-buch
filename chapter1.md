@@ -269,3 +269,72 @@ Unter Webmin können Sie hier einen Eintrag hinter "Anon. FTP-Anmeldung" machen.
 ftp_user anonymous@schule.de
 ```
 
+### ftp_passive
+
+Normalerweise verwendet Squid sowieso passives FTP. Wenn Sie das nicht möchten, können Sie es hier aber abstellen:
+```
+ftp_passive off
+```
+
+### ftp_list_width
+
+Gibt die Anzahl der Zeichen an, die Squid pro Spalte bei der Verwendung des FTP-Protokolls an den Client zurückgibt. Dies ist besonders bei der Verwendung eines Browsers hilfreich, um in FTP-Verzeichnissen etwas mehr von den eigentlichen Dateinamen zu sehen.
+```
+ftp_list_width 45
+```
+
+### redirect_program
+
+Hier können externe "Weiterleitungs-"Programme eingebunden werden. Diese Programme bekommen vom Squid sämtliche Anfragen vom Client durchgereicht, überprüfen diese intern und geben dann an Squid entweder die Anfragen zurück, damit dieser diese holt oder Sie reagieren auf die Anfragen und leiten Sie um.
+
+Ein solches Programm ist z.B. das Programm SquidGuard, welches in einem anderen Kapitel besprochen wird.
+
+Weitere Filterprogramme gibt es wie "Sand am Meer" - suchen Sie doch einfach mal in einer Suchmaschine Ihrer Wahl nach den Begriffen "redirect program squid download"...
+
+Dort werden Sie dann auch so nützliche Programme wie "Adware-Blocker" und ähnliches finden.
+
+Beispielhaft aktivieren wir nun einmal SquidGuard (beachten Sie bitte die komplette Pfadangabe zum Programm!):
+
+```
+redirect_program /usr/bin/squidGuard
+```
+
+Sie können übrigens mehrere "Redirector"-Programme hintereinander angeben. Squid reicht die URLs dann der Reihe nach von einem Redirector zum anderen weiter. D.h. wenn Sie z.B. zuerst einen AddBlocker als Redirector eingestellt haben, so liefert diese ja eine andere URL an Squid zurück. Der nachfolgende Redirector wird dann diese (neue) URL prüfen.
+
+### redirect_children
+
+Der Parameter redirect_children weist Squid an, eine bestimmte Anzahl von Redirect-Programmen im Voraus zu starten, damit Anfragen von mehreren Clients zügig beantwortet werden können. Der Defaultwert von fünf hat sich aber bewährt und sollte nur in begründeten Ausnahmefällen geändert werden. Keine Angst: surfen mehr als Clients über Squid, werden auch eine entsprechende Anzahl an Redirect-Programmen gestartet - Plus 5 zusätzlichen, die schnell einspringen, wenn plötzlich weitere Clients auftauchen.
+```
+redirect_children 5
+```
+Sollten ihre Schüler aber über Verbindungsabbrüche klagen oder im Logfile von Squid verdächtigge Einträge im Zusammenhang mit redirect_children auftauchen - dann drehen Sie hier vorsichtig hoch.
+
+### auth_param
+
+Der neue Squid (ab 2.3) arbeitet nicht mehr mit den bisherigen Parametern authenticate_program" und "authenticate_children".
+
+Sollten Sie diese Parameter noch in Ihrer squid.conf eingetragen haben, werden Sie diesbezüglich Fehlermeldungen beim Starten von Squid bekommen und die Nutzerauthentifizierung findet nicht mehr statt!
+
+Geben Sie - um eine Nutzeranmeldung über die Datei /etc/shadow im Browser zu verlangen - folgende 4 Zeilen in die squid.conf ein:
+```
+auth_param basic program /usr/sbin/ncsa_auth /etc/shadow
+auth_param basic children 5
+auth_param basic realm Internetzugang
+auth_param basic credentialsttl 2 hour
+```
+und hier die Erklärung zu den einzelnen Zeilen:
+| Wert | Erklärung |
+| -- | -- |
+| auth_param basic program /usr/sbin/ncsa_auth /etc/shadow | Zur Authentifizierung greift Squid hier auf das Programm ncsa_auth zurück. Das ist das Standardprogramm von Squid. Andere Programme sind z.B. smb_auth, yp_auth oder squid_ldap_auth. (ein Hinweis an dieser Stelle: das Programm ldap_auth hat dieselbe Funktion, wird aber nicht mehr weiter Entwickelt und ist von squid_ldap_auth abgelöst worden). All diese Programme können Nutzer authentifizieren:
+* ncsa_auth authentifiziert die Nutzer über eine shadow-Datei, wie Sie Linux z.B. in /etc/shadow verwendet. Dort sind normalerweise alle Nutzer des Systems eingetragen. Da diese Datei aber auch für andere Authentifizierungen (z.B. der Benutzeranmeldung) genutzt wird, sollten Sie hier vorsichtig bei Veränderungen sein. (Achtung: Bitte löschen Sie  keine Nutzer aus der Datei /etc/shadow, wenn Sie Ihnen nur das Surfen im Internet verbieten wollen!)
+* smb_auth authentifiziert die Nutzer über Ihre Samba-Passwörter in der Datei smbpasswd. Diese können u.U. von denjenigen in /etc/passwd abweichen: nicht jeder Nutzer, der sich an einem Windows-Client anmelden können soll, soll sich ja auch am Server selbst anmelden können. Ansonsten gilt hier dasselbe wie für ncsa_auth: beachten Sie, dass die Datei smbpasswd durchaus auch für andere Authentifizierungen genutzt wird!
+* yp_auth Hier werden Nutzer über einen NIS-Server identifiziert. Dabei reicht das Modul normalerweise nur Benutzername und Passwort an den NIS-Server weiter und erhält von diesem entweder ein "ok" oder eine Fehlermeldung zurück. Hier liegen die Möglichkeiten ganz und gar bei der Konfiguration der NIS-Datenbank. So könnte hier einzelnen Nutzern z.B. eine normale Anmeldung, nicht aber das Surfen im Internet erlaubt werden...
+* squid_ldap_auth Auch hier reicht das Modul die Daten nur an einen anderen Server weiter, der die eigentlich Authentifizierung vornimmt und eine entsprechende Antwort an das Modul zurücksendet. Da heute immer mehr Administratoren auf LDAP umsatteln, wird diese Art der Authentifizierung zukünftig wohl eine größere Bedeutung gewinnen, da sich hier - ähnlich wie bei der Authentifizierung über einen NIS-Server - gezielt Unterscheidungen vornehmen lassen. So sähe eine gülitge Zeile mit Zusatzattributen hier wie folgt aus:
+```
+authenticate_program /usr/sbin/squid_ldap_auth -b dc=Schule,dc=de -f (&(!(internetDisabled=true))(!(gidNumber=103))(uid=%s)) -u uid ldap
+``
+D.h. im LDAP gibt es für jeden Nutzer einen Eintrag "internetDisabled". Sollte dieser nicht auf "true" stehen oder der anmeldende Nutzer die Gruppen-ID 103 besitzen, dann wird Squid die Anmeldung verweigern - sonst zulassen. |
+| auth_param basic children 5 | Squid startet - um Anfragen möglichst schnell beantworten zu können - das Authentifizierungsprogramm gleich mehrfach im voraus. Diese Einstellung sollte für ~150 Rechner ausreichen. Bitte erhöhen Sie sie also nur, wenn die Anmeldung wirklich zu lange dauert, da ansonsten unnötig Speicherplatz verbraucht wird.  |
+| auth_param basic realm Internetzugang | Das Wort hinter "realm" wird im Dialogfenster bei der Anmeldung angezeigt. Bei mehreren Wörtern diese bitte in Anführungszeichen setzen. |
+| auth_param basic credentialsttl 2 hour | Die Authentifizierung wird die eingestellte Zeit lang aufrecht erhalten. Danach muss sich ein Nutzer erneut anmelden. Sollte der Nutzer zwischenzeitlich den Browser schließen, muss er sich allerdings sowieso erneut anmelden. Eine kürzere Zeitspanne dürfte also kaum jemanden auffallen. |
+
