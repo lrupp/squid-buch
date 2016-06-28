@@ -14,6 +14,6 @@ Für SquidGuard und C-Icap (im Zusammenspiel mit SquidClamav) habe ich eigene Ka
 
 Ebenso für Sarg und SquidAnalyzer, die beide eine gute Möglichkeit bieten, die Logfiles von Squid auszuwerten.
 
-Wie immer gilt: ich bin nicht perfekt und habe sicherlich auch das eine oder andere Vergessen. Wer sich also für dieses kleine Buch bedanken möchte, der darf mir jederzeit Ergänzungen oder Fehlerkorrekturen zukommen lassen. 
+Wie immer gilt: ich bin nicht perfekt und habe sicherlich auch das eine oder andere Vergessen. Wer sich also für dieses kleine Buch bedanken möchte, der darf mir jederzeit Ergänzungen oder Fehlerkorrekturen zukommen lassen. Gerne auch via https://git.gitbook.com/lrupp/squid-buch.git
 
 
