@@ -1,5 +1,5 @@
 # Summary
 
 * [Einleitung](README.md)
-* [First Chapter](chapter1.md)
+* [Die Konfigurationsdatei](chapter1.md)
 
