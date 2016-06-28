@@ -381,3 +381,287 @@ Bitte beachten Sie, dass Squid bei einigen Einstellungen gegen die w3d-Konventio
 Die beiden vorletzten refresh-pattern sorgen (als Beispiel für komplexere Ausdrücke) dafür, dass Windows-Updates im Cache zwischengespeichert werden. Damit gelingt dann das Updaten der Windows-Rechner ein wenig schneller. Natürlich könnte man auch die vorherigen Zeilen für die Bilder zusammenfassen - hier habe ich einmal aus Gründen der Übersichtlichkeit darauf verzichtet.
 
 Der letzte Eintrag sorgt mit dem "." (Punkt) dafür, dass alle angeforderten Seiten, Grafiken, etc. für mindestens 14 Tage zwischengespeichert werden, solange sie sich nicht ausdrücklich geändert haben.
+
+### quick_abort_min
+
+Wenn nach einer Anfrage eines Benutzers die Übertragung des Objekts vom Benutzer abgebrochen wird (z.B. durch "Klick" auf eine andere Seite bevor die aktuelle zu Ende geladen ist), wird das Objekt vom Proxy trotzdem vollständig in den Cache geladen, wenn weniger als "quick_abort_min" noch zu laden sind.
+
+Empfehlung: 0 KB einstellen. Damit bricht Squid das Laden wirklich ab und kann sich um andere Sachen kümmern. Das bringt bei Klickwütigen Schülern schon eine ganze Menge!
+```
+quick_abort_min 0 KB
+```
+
+### quick_abort_max
+
+Wenn nach einem Abbruch durch den Benutzer noch mehr als "quick_abort_max" zu laden sind, wird auch der Proxyserver das laden des Objekts abbrechen.
+
+Empfehlung: 0 KB. Auch hier sollte Squid nicht zum Laden einer Seite gezwungen werden, die ein Schüler vielleicht nur versehentlich ansurfen wollte.
+```
+quick_abort_max 0 KB
+```
+
+### quick_abort_pct
+
+Wenn nach einem Abbruch durch den Benutzer bereits mehr als "quick_abort_pct" Prozent des Objekts  geladen sind, wird der Proxyserver das Objekt vollständig laden.
+
+Empfehlung: 100. Also soll Squid das Laden nur dann fortsetzen, wenn die Seite schon zu 100 Prozent geladen ist... (Erklärung s.o.)
+```
+quick_abort_pct 100
+```
+
+Mit diesen Werten für quick_abort wird das Laden eines Objektes grundsätzlich sofort abgebrochen, wenn der Surfer "weiter klickt" oder das Laden abbricht.
+
+### negative_ttl
+
+Fehlermeldungen wie z.B. "connection refused" oder "404 Not Found" werden die hier angegebene Zeit (in Minuten) im Cache gehalten, d.h. von Proxyserver bei erneuten Anfragen mit dem gleichen Fehler beantwortet. Sollte zum Zeitpunkt einer Anfrage keine Internetverbindung bestehen, gibt es folglich eine Fehlermeldung, die auch dann noch für die hier eingestellte Zeit erhalten bleibt wenn eine Online-Verbindung aufgebaut wurde.
+
+In Schulsituationen eine unangenehme Situation, wenn die Schüler zuerst "mal wieder schneller als der Lehrer" waren und dann - trotz Verbindungsaufbau - weiterhin nur eine Fehlerseite erscheint. Setzen Sie deshalb hier bitte die voreingestellte Zeit von 5 Minuten auf die kürzeste Zeitspanne von 5 Sekunden herunter!
+```
+negative_ttl 5 second
+```
+
+### negative_dns_ttl
+
+Ähnlich wie die negative_ttl - hier allerdings nur für Anfragen an einen Nameserver gültig. Auch hier sollten Sie die Zeit auf das Minimum reduzieren:
+```
+negative_dns_ttl 5 second
+```
+
+## TIMEOUTS
+
+Hier werden Zeitbegrenzungen für unterschiedliche Prozesse definiert. Vor allem das Verhalten von Squid gegenüber den eingesetzten Clients spielt dabei für uns eine Rolle.
+
+### connect_timeout
+
+Diese Option bestimmt, wie lange Squid auf einen vollständigen TCP-Verbindungsaufbau zu einem Server wartet. Innerhalb dieser Zeit (Standard 2 Minuten) muss die Verbindung zum Server aufgebaut sein - ansonsten gibt Squid eine Fehlermeldung aus.
+```
+connect_timeout 90 second
+```
+
+### request_timeout
+
+Bestimmt, wie lange nach einem erfolgreichen TCP-Verbindungsaufbau eines Clients auf eine HTTP-Anfrage gewartet wird (Standard: 5 Minuten).
+```
+request_timeout 2 minute
+```
+
+### half_closed_clients
+
+Einige Clients beenden die sendende Seite einer TCP-Verbindung, lassen jedoch die empfangende Seite offen. Squid kann dies nicht von einer vollständig geschlossenen Verbindung unterscheiden.
+
+Mit "on" wird bestimmt, das Squid die Verbindung hält, bis beim Lesen oder Schreiben in dieser Verbindung ein Verbindungsfehler gemeldet wird.
+
+"off" bestimmt, dass die Verbindung beendet wird, sowie beim Lesen ein "no more data to read" zurück gegeben wird.
+```
+half_closed_clients off
+```
+
+### shutdown_lifetime
+
+Wenn Squid die Aufforderung zum "Shutdown" erhält ("SIGTERM" oder "SIGHUP" unter Linux), nimmt er keine neuen Verbindungen mehr an und wartet bis die vorhandenen Verbindungen abgebaut sind.
+
+Diese Option bestimmt, wie lange Squid maximal warten soll, bis er die restlichen Verbindungen von sich aus unterbricht und herunter fährt.
+
+Alle dann noch aktiven Clients bekommen eine "Timeout"-Fehlermeldung. Der Wert wird in Sekunden angegeben.
+```
+shutdown_lifetime 10 second
+```
+
+## ACCESS CONTROL
+
+Zitieren wir einmal aus der allgemeinen Squid Dokumentation: "Für das folgende Kapitel benöigen Sie einen starken Kaffee, ein paar billige Bleistifte (zu Ihrer Gesundheit möglichst ungefärbte) und Sie sollten alle scharfen Gegenstände aus Ihrer Umgebung entfernen. Mit Squid ACL's können Sie nahezu jede erdenkliche Zugriffsregel erstellen. Manche Firewall kann hier nicht mithalten. Diese Komplexität birgt jedoch auch einige Fallen, in die Sie stolpern können. Mancher Administrator soll daran schon verzweifelt sein."
+
+Aber keine Angst, die meisten Einstellungen sind ja schon gemacht. Wir wollen hier nur noch zusätzliche Einträge für eine Bandbreitenbegrenzung und für die Absicherung des Proxys nach aussen einfügen.
+
+### acl
+
+ACLs sind Access-(Zugriffs-)Listen, die umständlich ausgedrückt nur eine Definition von Regeln darstellen. Die hier vorgenommenen Einstellungen gelten also normalerweise noch nicht!
+
+Damit werden nur bestimmte Ausdrücke mit einem "einfach" zu merkenden Namen verknüpft. Diese Namen unterliegen wieder den normalen Restriktionen, wie man sie allgemein kennt (erlaubt sind nur Buchstaben, Nummern sowie '_' und '-').
+
+Wir definieren hier - sofern noch nicht vorhanden - verschiedene Regeln und weisen diesen Regeln dann einen Namen zu. Da die Regeln hier noch nicht in Kraft treten, sondern nur definiert werden, ist die Reihenfolge hier nicht weiter wichtig. Sie sollten nur beachten: pro Regel nur eine Zeile. Sollte ihnen der Platz nicht ausreichen, können Sie die Regel auch in eine separate Datei auslagern (s.u.).
+
+| ACL | Erklärung |
+| -- | -- |
+| acl all src 0.0.0.0/0.0.0.0 | Hiermit wird eine Regel definiert, die auf alle IP-Adressen trifft. Mit dem Kürzel "acl" teilen wir Squid mit, dass nun eine neue Regel definiert wird, deren Name direkt folgt und u.a. keine Leerzeichen beinhalten darf. Unsere Regel lautet also "all". Das Schlüsselwort "src" nach dem Namen weist Squid an, den nachfolgenden Wert als IP-Adresse oder IP-Netzwerkbereich zu behandeln. Weiter unten werde ich noch andere Schlüsselwörter erläutern. Zum Schluss kommt dann der eigentliche Inhalt der Regel - in diesem Fall ein IP-Adressbereich. |
+| acl our_networks src 172.16.0.0/16 | Mit "our_networks" definieren wir diejenigen Rechner, welche später überhaupt auf den Proxyserver zugreifen dürfen. In unserem Beispiel sind das Rechner mit der IP 172.16.x.y und dem Subnetz 255.255.0.0 - die Zahl 16 ist nur eine andere Schreibweise für das Subnetz. Wenn Sie also zusätzlich noch Rechner im 192.168er Netz über den Proxy laufen lassen möchten, müssen Sie - mit Leerzeichen getrennt - noch 192.168.0.0/16 anfügen. |
+| acl dateien urlpath_regex -i \.(zip|exe|cmd|rar|com|mp3|mp[e]g)($|\?) | Die hier erstellte Zugriffsregel wird für beliebte "Download"-Dateien später nur eine bestimmte Bandbreite zulassen. Hier sieht man sehr schön, dass nach der Namensvergabe "dateien" ein anderes Schlüsselwort "urlpath_regex" folgt, welches zusätzlich noch bestimmte "Optionen" erlaubt. In diesem Fall steht die Option "-i" wieder für das Ignorieren von Gross- und Kleinschreibung. Da gleich mehrere Dateiendungen in dieser Regel erfasst werden sollen, werden diese durch Leerzeichen voneinander getrennt. |
+| acl authenticated proxy_auth REQUIRED |  	Hiermit definieren wir eine ACL mit dem Inhalt "Proxy-Anmeldung erforderlich". Wenn diese ACL später aktiviert wird, dann müssen die Nutzer sich über die unter auth_param eingestellte Authentifizierungsform anmelden. Ansonsten verweigert Squid die Nutzung. |
+| acl sites_without_auth dstdomain *.foo.com | Angenommen, die Nutzer sollen einige Seiten im Internet ansurfen können ohne sich vorher authentifizieren zu müssen. Mit dieser ACL definieren Sie eine Regel "sites_without_auth" und dahinter geben Sie die Seiten an, welche später auch ohne Anmeldung am Squid angesurft werden können (etwa die eigene Homepage). Beachten Sie bitte, dass später dann die Reihenfolge der http_access Einträge entscheidend ist! |
+| acl winupdate dstdomain .update.microsoft.com .windowsupdate.microsoft.com | Damit die Rechner ein Windows-Update fahren können, ohne dass eine Anmeldemaske "aufpoppt", nehmen wir diese Adressen noch in eine eigene ACL mit auf. Diese ACL kommt dann später natürlich auch vor die "http_access allow authenticated" Zeile. |
+
+Nun wollen wir noch eine "whitelist" und eine "blacklist" anlegen, welche URLs von Webseiten enthalten soll, die wir entweder sperren oder freigeben möchten. Um nicht immer in der Konfiguration von Squid herumfuhrwerken zu müssen, um hier neue Seiten einzutragen, werden diese Listen in separate Dateien ausgelagert und in der Konfigurationsdatei wird nur der Speicherort der Dateien angegeben.
+
+| ACL | Erklärung |
+| -- | -- |
+| acl whitelist url_regex "/etc/squid/acl_whitelist" | In der Datei /etc/squid/acl_whitelist werden dan einfach untereinander der einzelnen URLs der Seiten (ohne http://) aufgelistet. |
+| acl blacklist url_regex "/etc/squid/acl_blacklist" | In der Datei /etc/squid/acl_blacklist werden dan einfach untereinander der einzelnen URLs der Seiten (ohne http://) aufgelistet. |
+
+Tip: Diese Art der Sperrung von Internetseiten mag bei wenig Einträgen noch gut funktionieren. Wenn Sie aber mehr als 100 Einträge haben, lohnt der Einsatz von speziellen Filterprogrammen wie SquidGuard.
+
+Ab und zu kommt von Schulen die Frage: "Können wir die Anmeldung am Squid ähnlich begrenzen, wie unter Samba?" Also Squid so konfigurieren, dass ein Schüler sich nur einmal am Squid anmelden kann?
+
+Die Antwort lautet: Ja.
+
+Hierfür definiert man eine spezielle ACL:
+```
+acl maxlogon max_user_ip -s 1
+```
+Der Parameter -s bewirkt später das "harte" Blocken, d.h. wenn sich der Schüler an einem anderen Rechner anmelden will, bekommt er sofort die rote Karte. Ohne -s läßt Squid ihn noch ab- und zu durch - in der Hoffnung, dass der Schüler den Fehler erkennt.
+
+Wichtig hierbei: Squid speichert ja die Anmeldung (ansonsten würde der Schüler sein Passwort bei jeder neuen Seite erneut eingeben müssen) für eine gewisse Zeit. Wenn nun aber ein Raumwechsel ansteht, dann kann es passieren, dass Squid noch die Anmeldung unter der alten IP gespeichert hat und den Nutzer dann im neuen Raum nicht hineinläßt. Deshalb muss man zusätzlich noch ein wenig mit dem Parameter:
+``` 
+authenticate_ip_ttl 2 minutes
+``` 
+herumspielen. In diesem Beispiel speichert Squid das Passwort 2 Minuten - normalerweise ausreichend für eine Schulstunde in welcher die Schüler oft neue Seiten aufrufen.
+
+Denken Sie daran, dass Sie für die ACL "maxlogon" noch eine http_access-Regel definieren müssen. http_access Mit den http_acess-Anweisungen bestimmen wir nun, was mit den zuvor gemachten ACLs geschehen soll. 
+
+Hier kommt es auf die richtige Reihenfolge an!
+
+Der erste zutreffende Ausdruck wird verwendet!
+Deshalb sperren wir jetzt auch erst einmal den Rest der Welt aus unserem Proxy-Server aus, indem wir zunächst nur nur unser lokales Netzwerk zulassen und anschließend die weite Welt aussperren:
+```
+http_access allow our_networks
+http_access deny all
+```
+Mit diesen beiden Angaben am Ende der http_access-Regelliste erlauben ("allow") wir also grundsätzlich unserem Netzwerk ("our_networks"), welches wir ja weiter oben genau definiert haben, den Zugriff auf den Proxy während der Rest der Welt ("all" s.o.) der Zugriff verboten ("deny") wird. Zu beachten: werden diese Regeln andersherum durchlaufen, bleibt auch das lokale Netzwerk draussen, da auch die lokalen Adressen von der allgemeinen Regel erfasst werden und damit die Abarbeitung der Regeln schon nach der ersten abgebrochen wird.
+
+Wenn Sie also z.B. den Zugriff auf unsere "Dateien" verbieten wollen, muss eine entsprechende http_access-Regel VOR dem "allow our_networks" hinzugefügt werden! Steht Sie dahinter, darf unser Netzwerk diese Dateien laden, weil Squid die weiter unten stehende Regel nicht mehr auswertet, sobald ein Rechner zu unserem Netzwerk gehört... 
+
+### icp_access 
+
+Nachdem wir andere Clients ausgesperrt haben, verbieten wir in einem zweiten Schritt auch anderen Proxys den Zugriff auf unseren Server. Da die Proxys untereinander über sogenannte icp-queries miteinander kommunizieren, müssen wir dafür eine andere Regel setzen: icp_access. Wer bei http_access aufgepasst hat, der dürfte die jetzt folgende Regelkette schon erraten.
+```
+icp_access allow our_networks
+icp_access deny all
+```
+
+## ADMINISTRATIVE PARAMETERS
+
+### cache_mgr
+Gibt die Email-Adresse desjenigen armen Menschen an, der für die Konfiguration des Servers verantwortlich ist. Sie können diese Email-Adresse über die Variable %w auch in selbstgenerierten Fehlerseiten anzeigen lassen: setzen Sie dazu einfach eine Zeile: "Ihr Cache Administrator ist %w." ein.
+```
+cache_mgr admin@localhost
+```
+
+## MISCELLANEOUS
+
+### dns_testnames
+
+Squid testet beim Start ob eine DNS-Auflösung von Rechnernamen möglich ist - ansonsten wird der Start abgebrochen. Hier können mehrere Rechnernamen angegeben werden. Der Test wird nach der ersten erfolgreichen Auflösung eines Namens beendet.
+
+Um also den Start zu beschleunigen mogeln wir ein wenig und lassen Squid den Namen des eigenen Rechners zuerst auflösen:
+```
+dns_testnames localhost netscape.de denic.de microsoft.com
+```
+Aber Achtung: sollten wir unserem DNS nicht trauen können, hilft auch der schnellste Start von Squid nicht weiter.
+
+### forwarded_for
+
+Im Normalfall (on) wird Squid die IP-Adresse oder den Namen des Clients als "X-Forwarded-For:" in den Header der weitergeleiteten HTTP-Anfrage einfügen.
+
+Beispiel: X-Forwarded-For:192.168.20.10
+
+Wird diese Option abgeschaltet (off) wird Squid den Client bei der Weiterleitung nicht nennen. Im Header wird dann ein "X-Forwarded-For: unknown" erscheinen. Damit erhält der jeweilige Server auf der Gegenseite also keine Auskunft über die Organisation des internen Netzwerks - ein kleiner aber feiner Sicherheitsgewinn.
+
+Problematisch wird es hier nur, wenn die Nutzer passwortgeschützte Seiten ansurfen, die nicht über Cookies oder andere Varianten die Authentizität des Nutzers überprüfen: im schlimmsten Fall dürfen dann alle Nutzer unter dem Account eines anderen bei ebay Artikel ersteigern oder Mail lesen! (Aber mal ehrlich: wer heute noch solcherart "gesicherte" Seiten ansurft, der darf sich auch über einen "gehackten Account" nicht wundern - oder?)
+```
+forwarded_for off
+```
+Sollte daher am besten beibehalten werden, wenn man nicht Ärger mit seinen Nutzern bekommen möchte. Sollte eine entsprechende Regelung existieren und die Nutzer dürfen Webseiten mit Authentifizierung nicht ansurfen, kann man mit dieser Option Squid allerdings sehr gut beschleunigen.
+
+### log_icp_queries
+
+In unserem Setup eigentlich unnötig, da wir ja Anfragen von anderen Servern sowieso nur aus dem internen Netz zulassen. Sollte aus irgend einem Grund allerdings einmal ein weiterer Server im Intranet dazukommen, dann wird Squid für Anfragen dieses Servers nicht noch ein zusätzliches Logbuch anlegen.
+```
+log_icp_queries off
+```
+Wenn alerdings mal etwas schief geht und man "debuggen" muss, welcher Server jetzt überhaupt was anfordert, dann ist ein "on" hier sicherlich hilfreich.
+
+### buffered_logs
+
+Einen kleinen Geschwindigkeitsgewinn bringt die Zwischenpufferung der Logdatei "cache.log": Mit einer Pufferung (on), kann der Schreibvorgang geringfügig beschleunigt werden, da große Teile der Logdatei im RAM gehalten und nur sporadisch auf die Festplatte geschrieben werden. Bei einem Absturz führt dies jedoch zum Verlust der letzten Loginformationen. Bei einem Problemlosen Betrieb verschmerzen wir das einmal für das "letzte Quentchen an Geschwindigkeitsrausch". Denken Sie aber daran, dass Sie diese Option wieder deaktivieren, wenn Sie Problemen auf den Grund gehen wollen.
+```
+buffered_logs on
+```
+
+### snmp_port
+
+Bestimmt den Port auf dem Squid's interner SNMP-Server lauscht.
+
+Über diesen Port können (wenn Squid mit der entsprechenden Option kompiliert wurde) SNMP Daten abgefragt werden. Dies dient in größeren Netzwerken zur Überwachung der einzelnen Server.
+
+Soll Squid grundsätzlich zunächst einmal keine SNMP-Anfragen beantworten, muss diser Port auf "0" gesetzt werden.
+```
+snmp_port 0
+```
+
+## DELAY POOL PARAMETERS
+
+Mit den "Delay-Pools" von Squid lässt sich eine Bandbreitenbegrenzung ür bestimmte Clients oder URL-Teile erreichen. In Schulen mit "Medienecken", an welchen Schüler in Freistunden sitzen dürfen, also eine gute Möglichkeit genügend "Reserven" für den normalen Unterricht vorzuhalten. 
+
+Auch Daheim kann man so dem Internet-Fernsehzuschauern zumindest eine gewisse Bandbreite zusichern, damit die Bilder nicht das Ruckeln anfangen, wenn Sohnemann mal wieder große Dateien aus dem Internet läd.
+
+### delay_pools 
+
+Zunächst einmal müssen wir Squid mitteilen, wie viele Delay-Pools wir einrichten möchten. Bei dem hier gezeigten Beispiel handelt es sich um zwei Delay-Pools, die - bei einer DSL-Verbindung - die normalen Surfer eindeutig bevorzugen und "Downloadfreaks" an den Rand der Verzweiflung treiben sollen.
+```
+delay_pools 2
+```
+
+### delay_class
+
+Squid kennt grundsätzlich drei verschiedene Arten von Delay-Pools:
+
+1. In einem Pool der Klasse 1 wird die Download-Rate aller Verbindungen zusammengefasst und darf eine gewisse Bandbreite nicht überschreiten. Also ein ideales Anwendungsgebiet um allen Nutzern (auf welche die betreffende acl zutrifft) einen Dämpfer zu verpassen. Wenn man es genau nimmt, dann arbeitet Squid in der Standardeinstellung also mit genau einem Delay-Pool der Klasse 1 - ohne Beschränkungen. 
+2. In einem Pool der Klasse 2 kann einerseits wieder die gesammte Bandbreite begrenzt werden (dafür dient der erste Parameter) und andererseits die Bandbreite für einen mit einer acl festgelegten Bereich oder Benutzer.
+3. Ein Delay-Pool der Klasse 3 letzendlich erlaubt zusätzlich zu den oberen noch eine Begrenzung für ein gesammtes Subnetz.
+
+| Option | Erklärung |
+| -- | -- |
+| delay_class 1 2 | Der erste Delay-Pool ist ein Pool der Klasse 2. |
+| delay_class 2 1 | Der zweite Delay-Pool ist ein Pool der Klasse 1. |
+
+### delay_parameters
+
+| Option | Erklärung |
+| -- | -- |
+| delay_parameters 1 -1/-1 102400/512000 | Der erste Pool erhält einen kontinuierlichen Datenzufluss (wie aus einem Wasserhahn). Es gibt keine Begrenzung (-1 schaltet die Begrenzung aus).
+Bei Bedarf kann der Inhalt des Pools für einzelne Mitglieder mit einem Schwung von 512000 bytes/s ausgekippt werden - anschließend füllt sich der Pool wieder langsam mit 102400 bytes/s. Dieses Verhalten ist für Surfer wohl am günstigsten: Eine neue Seite wird zunächst mit voller Geschwindigkeit geladen - während der Surfer die Seite betrachtet, füllt sich der Delay-Pool langsam wieder auf. |
+| delay_parameters 2 128000/128000 | Der zweite Pool bekommt maximal 128000 byte/s. Nicht mehr und nicht weniger. Der maximale Durchsatz wird hier also massiv begrenzt. Da durch die eingesetzte acl später hier alle als "Dateien" deklarierten Endungen betroffen sind, wird sich so mancher "Download-Freak" hier üer "das lahme Internet" wundern. |
+
+### delay_access
+
+Bitte beachten Sie hier die Reihenfolge:
+
+Es werden immer der Reihe nach alle Pools der Klasse 1, danach Pools der Klasse 2 und danach Pools der Klasse 3 abgearbeitet. Selbst wenn Sie in der folgenden Konfiguration einen Klasse 2 Pool vor einem Klasse 1 Pool setzen, wird zuerst der Klasse 1 Pool abgearbeitet.
+
+Erst innerhalb ein und derselben Delay-Pool-Klasse kommt es auf die Reihenfolge innerhalb der Konfigurationsdatei an.
+
+| Option | Erklärung |
+| -- | -- |
+| delay_access 2 allow Dateien | Der zweite Pool wird auf alle in der acl "Dateien" definierten Dateiendungen angewendet. |
+| delay_access 2 deny all | ...und wieder geht den Rest der Welt dieser Pool nichts an. Die normalen Surfer aus dem internen Netzwerk werden auch nicht von diesem Pool bedient. |
+| delay_access 1 allow our_networks | Zum ersten Pool erhält das gesammte interne Netzwerk Zugriff. Da alle Anfragen, welche unsere "Dateien" beinhalten schon vorher abgefangen wurden (wie schon erwähnt, bricht Squid die Bearbeitung einer Anfrage beim ersten Treffer ab), darf jetzt alles andere diesen Pool benutzen. |
+| delay_access 1 deny all | Der gesammte Rest der Welt darf den Pool nicht nutzen |
+
+### Delay Pools testen
+
+Wenn Sie nicht wissen, ob Ihr eingesetzter Squid Delay-Pools unterstützt oder ob Ihre eingegebenen Werte bei den einzelnen Pools richtig sind, dann empfielt sich ein einfacher Test mit diesen Einstellungen:
+```
+acl all src 0.0.0.0/0.0.0.0
+acl dateien urlpath_regex -i \\.(zip|exe|cmd|rar|com|mp3)($|\\?)
+delay_pools 1
+delay_class 1 1
+delay_parameters 1 1024/1024
+delay_access 1 allow Dateien
+delay_access 1 deny all
+```
+Tragen Sie diese Werte in Ihre Datei "squid.conf" ein und laden Sie die Konfiguration des laufenden Squids erneut.
+
+Jetzt müssen Sie den Server nur noch Online schalten und eine ca. 5-10 MB große Datei mit der Endung ".exe", ".zip", ".rar", ".com" oder ".mp3" mit dem Browser aus dem Internet herunterladen.
+
+Egal, ob Sie mit einem Modem, ISDN oder DSL unterwegs sind: dieser Download dürfte extrem langsam sein. Wenn Sie jetzt aber zeitgleich auf ganz normalen HTML-Seiten surfen, werden Sie kaum Geschwindigkeitseinbußen im Vergleich zu Ihrer vorherigen Konfiguration feststellen können. Voila: die Delay-Pools funktionieren und Sie können sich durch schrittweises Erhöhen der delay_parameters an den für Sie optimalen Wert herantasten. Achten Sie aber bitte darauf, dass Ihr Browser nicht auch die schon einmal heruntergeladenen Seiten/Dateien zwischenspeichert: suchen Sie sich für jeden Test am besten eine neue Datei heraus.
+
+Erhöhen Sie den Wert in der Konfiguration übrigens bitte jeweils um Vielfache von 1024 - ansonsten muss Squid auf- bzw. abrunden.
