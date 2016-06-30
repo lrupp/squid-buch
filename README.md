@@ -10,10 +10,12 @@ Die meisten der Beispiele sind während meiner Hilfe in Schulen entstanden. Ents
 
 Das Kapitel über die Konfigurationsdatei enthält beleibe nicht alle möglichen Konfigurationsoptionen - die für mich nicht interessanten habe ich heraus gelassen. 
 
-Für SquidGuard und C-Icap (im Zusammenspiel mit SquidClamav) habe ich eigene Kapitel vorgesehen. 
+Für SquidGuard und C-Icap (im Zusammenspiel mit SquidClamav) als externe Filterprogramme habe ich eigene Kapitel vorgesehen. 
 
 Ebenso für Sarg und SquidAnalyzer, die beide eine gute Möglichkeit bieten, die Logfiles von Squid auszuwerten.
 
-Wie immer gilt: ich bin nicht perfekt und habe sicherlich auch das eine oder andere Vergessen. Wer sich also für dieses kleine Buch bedanken möchte, der darf mir jederzeit Ergänzungen oder Fehlerkorrekturen zukommen lassen. Gerne auch via https://git.gitbook.com/lrupp/squid-buch.git
+Wie immer gilt: ich bin nicht perfekt und habe sicherlich auch das eine oder andere Vergessen. Wer sich also für dieses kleine Buch bedanken oder Anregungen geben möchte, der darf mir jederzeit Ergänzungen oder Fehlerkorrekturen zukommen lassen. 
+
+Gerne auch via https://git.gitbook.com/lrupp/squid-buch.git
 
 
