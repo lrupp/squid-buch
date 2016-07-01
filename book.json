@@ -2,7 +2,7 @@
     "plugins": ["autocover"],
     "pluginsConfig": {
         "autocover": {
-            "title": "Squid - Eine Einführung in den Proxy Server",
+            "title": "Squid - Einführung",
             "author": "Lars Vogdt",
             "pluginsConfig": {
                 "autocover": {
@@ -16,7 +16,7 @@
                         "h": 2360
                     },
                     "background": {
-                        "color": "#09F"
+                        "color": "#A2F7F5"
                     }
                 }
             }
